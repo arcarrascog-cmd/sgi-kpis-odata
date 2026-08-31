@@ -448,6 +448,29 @@
     .days-counter { margin-left: 0; width: 100%; }
   }
 
+
+  .status-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .status-chip {
+    padding: 7px 16px;
+    border-radius: 30px;
+    border: 1.5px solid var(--border);
+    background: #ffffff;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .status-chip:hover { border-color: var(--primary-light); color: var(--primary); }
+
+  .status-chip.active-todas { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .status-chip.active-pendiente { background: var(--amber); border-color: var(--amber); color: #fff; }
+  .status-chip.active-monitoreada { background: var(--green); border-color: var(--green); color: #fff; }
+  .status-chip.active-caducada { background: var(--red); border-color: var(--red); color: #fff; }
+
   .last-update {
     font-size: 0.76rem;
     color: var(--text-dim);
@@ -583,7 +606,15 @@
     </div>
 
     <div class="chart-container" style="grid-column: 1 / -1;">
-      <div class="chart-title">👤 NC Abiertas por Analista</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <div class="chart-title" style="margin-bottom:0;">👤 NC Abiertas por Analista</div>
+        <div class="status-chips">
+          <button class="status-chip active-todas" data-status="">Todas</button>
+          <button class="status-chip" data-status="pendiente">🟠 Pendientes</button>
+          <button class="status-chip" data-status="monitoreada">🟢 Monitoreadas</button>
+          <button class="status-chip" data-status="caducada">🔴 Caducadas</button>
+        </div>
+      </div>
       <div class="chart-wrapper">
         <canvas id="chartAnalistas"></canvas>
       </div>
@@ -717,6 +748,7 @@ let DATA_GLOBAL = null;
 let PERIODO_DESDE = null;
 let PERIODO_HASTA = null;
 let ANALISTA_SEL = '';
+let STATUS_SEL = '';
 let chartAnalistas = null;
 
 let chartEstados = null;
@@ -1344,6 +1376,7 @@ function abiertasPorAnalista(){
     if(vistos.has(num)) return;
     const status = normalizar(row['Status TNC']);
     if(!['pendiente','monitoreada','caducada'].includes(status)) return;
+    if(STATUS_SEL && status !== STATUS_SEL) return;
     if(normalizar(row['Aplicabilidad']) !== 'real') return;
     const fe = parseDDMMYYYY(row['Fecha de Emisión']);
     if(!fe) return;
@@ -1366,7 +1399,10 @@ function renderChartAnalistas(){
       datasets: [{
         label: 'NC Abiertas',
         data: entries.map(e => e[1]),
-        backgroundColor: entries.map(e => ANALISTA_SEL && e[0] === ANALISTA_SEL ? '#8b5cf6' : '#522582'),
+        backgroundColor: entries.map(e => {
+          const base = STATUS_SEL === 'pendiente' ? '#e8a33d' : STATUS_SEL === 'monitoreada' ? '#2ecc9a' : STATUS_SEL === 'caducada' ? '#e94560' : '#522582';
+          return ANALISTA_SEL && e[0] === ANALISTA_SEL ? '#8b5cf6' : base;
+        }),
         borderRadius: 8
       }]
     },
@@ -1398,6 +1434,15 @@ function poblarFiltroAnalistas(){
   sel.innerHTML = '<option value="">- Todos -</option>' + emisores.map(e => `<option value="${e}">${e}</option>`).join('');
   sel.value = actual;
 }
+
+document.querySelectorAll('.status-chip').forEach(chip => {
+  chip.addEventListener('click', function(){
+    STATUS_SEL = this.dataset.status;
+    document.querySelectorAll('.status-chip').forEach(c => c.className = 'status-chip');
+    this.classList.add('active-' + (STATUS_SEL || 'todas'));
+    renderChartAnalistas();
+  });
+});
 
 document.getElementById('filtro-analista').addEventListener('change', function(){
   ANALISTA_SEL = this.value;
