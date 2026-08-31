@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ODATA SGI - TNC Eficacia & Retrasos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --bg:#f7f3fb;
+    --panel:#ffffff;
+    --panel-2:#f0e9f6;
+    --border:#ddccea;
+    --text:#2b1838;
+    --text-dim:#7a6a8a;
+    --accent:#522582;
+    --accent-light:#7a4fae;
+    --green:#1fa874;
+    --red:#d14545;
+    --amber:#d97c0d;
+    --violet:#522582;
+    --blue:#2f78c4;
+    --radius:10px;
+    --font: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  }
+  html[data-theme="dark"]{
+    --bg:#1a1025;
+    --panel:#241634;
+    --panel-2:#2d1c3f;
+    --border:#43295c;
+    --text:#f2eef7;
+    --text-dim:#b9a8cc;
+    --accent:#522582;
+    --accent-light:#7a4fae;
+    --green:#33D592;
+    --red:#e25c5c;
+    --amber:#F8991D;
+    --violet:#522582;
+    --blue:#3E92EA;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--text);
+    padding:28px 32px 60px;
+  }
+  header{
+    margin-bottom:32px;
+  }
+  header h1{
+    font-size:1.8rem;
+    margin:0 0 8px;
+    font-weight:700;
+    letter-spacing:.2px;
+  }
+  header p{
+    margin:0;
+    color:var(--text-dim);
+    font-size:.95rem;
+  }
+  .header-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-bottom:24px;
+  }
+  .upload-box{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-shrink:0;
+  }
+  .upload-btn{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:9px 16px;
+    border-radius:8px;
+    font-size:.88rem;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .upload-btn:hover{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#ffffff;
+  }
+  .theme-toggle{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    width:38px;
+    height:38px;
+    border-radius:8px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .theme-toggle:hover{ border-color:var(--accent); }
+  
+  /* SECCIÓN DE KPIs */
+  .kpi-section{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:24px;
+    margin-bottom:40px;
+  }
+  @media (max-width:1024px){
+    .kpi-section{ grid-template-columns:repeat(2, 1fr); }
+  }
+  @media (max-width:768px){
+    .kpi-section{ grid-template-columns:1fr; }
+  }
+  .kpi-card{
+    background:var(--panel);
+    border:2px solid var(--border);
+    border-radius:12px;
+    padding:32px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi-card::before{
+    content:'';
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:4px;
+    background:linear-gradient(90deg, var(--accent), var(--accent-light));
+  }
+  .kpi-card.success::before{ background:linear-gradient(90deg, var(--green), #2ecc71); }
+  .kpi-card.alert::before{ background:linear-gradient(90deg, var(--red), #e74c3c); }
+  
+  .kpi-label{
+    font-size:.95rem;
+    color:var(--text-dim);
+    font-weight:600;
+    margin-bottom:16px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+  }
+  .kpi-value{
+    font-size:3.6rem;
+    font-weight:800;
+    color:var(--text);
+    margin:0;
+    line-height:1;
+  }
+  .kpi-value-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:center;
+    gap:14px;
+    margin-bottom:8px;
+  }
+  .kpi-pct{
+    font-size:2.2rem;
+    font-weight:800;
+    line-height:1;
+    opacity:.85;
+  }
+  .kpi-card.success .kpi-value, .kpi-card.success .kpi-pct{ color:var(--green); }
+  .kpi-card.alert .kpi-value, .kpi-card.alert .kpi-pct{ color:var(--red); }
+  
+  .download-btn{
+    background:var(--accent);
+    border:1px solid var(--accent);
+    color:#ffffff;
+    padding:9px 16px;
+    border-radius:8px;
+    font-size:.88rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity .15s ease;
+  }
+  .download-btn:hover{ opacity:.85; }
+  .download-btn:disabled{ opacity:.4; cursor:not-allowed; }
+  
+  .kpi-subtitle{
+    font-size:.85rem;
+    color:var(--text-dim);
+    margin:12px 0 0 0;
+  }
+  .kpi-detail{
+    font-size:.8rem;
+    color:var(--text-dim);
+    margin-top:16px;
+    padding-top:16px;
+    border-top:1px solid var(--border);
+  }
+  
+  .dash-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+    border-bottom:1px solid var(--border);
+  }
+  .dash-tab{
+    background:transparent;
+    border:none;
+    border-bottom:3px solid transparent;
+    color:var(--text-dim);
+    padding:10px 6px;
+    font-size:.98rem;
+    font-weight:700;
+    cursor:pointer;
+    transition:color .15s ease, border-color .15s ease;
+  }
+  .dash-tab:hover{ color:var(--text); }
+  .dash-tab.active{
+    color:var(--accent);
+    border-bottom-color:var(--accent);
+  }
+  
+  .section-title{
+    font-size:1.1rem;
+    font-weight:700;
+    color:var(--text);
+    margin:32px 0 16px 0;
+  }
+  
+  .filter-group{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:16px;
+    margin-bottom:24px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+    gap:12px;
+  }
+  
+  .filter-control{
+    display:flex;
+    flex-direction:column;
+  }
+  .filter-control label{
+    font-size:.8rem;
+    font-weight:600;
+    color:var(--text-dim);
+    margin-bottom:6px;
+    text-transform:uppercase;
+  }
+  .filter-control input, .filter-control select{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 12px;
+    border-radius:6px;
+    font-size:.9rem;
+  }
+  
+  .reset-btn{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 16px;
+    border-radius:6px;
+    font-size:.85rem;
+    cursor:pointer;
+    font-weight:600;
+    align-self:flex-end;
+  }
+  .reset-btn:hover{ background:var(--accent); color:#fff; }
+  
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  thead{
+    background:var(--panel-2);
+    border-bottom:2px solid var(--border);
+  }
+  th{
+    padding:12px;
+    text-align:left;
+    font-weight:700;
+    font-size:.9rem;
+    color:var(--text);
+  }
+  td{
+    padding:12px;
+    border-bottom:1px solid var(--border);
+    font-size:.9rem;
+  }
+  tr:hover td{ background:var(--panel-2); }
+  
+  .status-badge{
+    display:inline-block;
+    padding:4px 12px;
+    border-radius:20px;
+    font-size:.8rem;
+    font-weight:700;
+  }
+  .status-pending{ background:rgba(217,124,13,.15); color:var(--amber); }
+  .status-completed{ background:rgba(31,168,116,.15); color:var(--green); }
+  .status-caducada{ background:rgba(226,92,92,.15); color:var(--red); }
+  
+  .upload-status{
+    font-size:.85rem;
+    margin-top:8px;
+    color:var(--text-dim);
+  }
+  .upload-status.success{ color:var(--green); }
+  .upload-status.error{ color:var(--red); }
+  
+  #fileInput{ display:none; }
+</style>
+</head>
+<body>
+
+<div class="header-top">
+  <header>
+    <h1>📊 ODATA SGI - Análisis de TNC</h1>
+    <p>Eficacia de cierre y retrasos en No Conformidades reales | Última actualización: <span id="lastUpdate">-</span></p>
+  </header>
+  <div class="upload-box">
+    <button class="upload-btn" id="uploadBtn">📁 Cargar Excel</button>
+    <button class="download-btn" id="downloadBtn" disabled>📄 Descargar Informe</button>
+    <button class="theme-toggle" id="themeToggle">🌙</button>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls">
+<div class="upload-status" id="uploadStatus"></div>
+
+<!-- SECCIÓN PRINCIPAL DE KPIs -->
+<div class="kpi-section">
+  <div class="kpi-card success">
+    <div class="kpi-label">✓ TNCs Cerradas Eficaces</div>
+    <div class="kpi-value-row">
+      <span class="kpi-value" id="kpi-eficaces">-</span>
+      <span class="kpi-pct" id="pct-eficaces"></span>
+    </div>
+    <div class="kpi-subtitle">últimos 12 meses (validadas)</div>
+    <div class="kpi-detail" id="detail-eficaces"></div>
+  </div>
+  
+  <div class="kpi-card alert">
+    <div class="kpi-label">✗ TNCs No Eficaces</div>
+    <div class="kpi-value-row">
+      <span class="kpi-value" id="kpi-ineficaces">-</span>
+      <span class="kpi-pct" id="pct-ineficaces"></span>
+    </div>
+    <div class="kpi-subtitle">% sobre las cerradas del último año</div>
+    <div class="kpi-detail" id="detail-ineficaces"></div>
+  </div>
+  
+  <div class="kpi-card alert">
+    <div class="kpi-label">✗ NC Abiertas/Vencidas >180 días</div>
+    <div class="kpi-value-row">
+      <span class="kpi-value" id="kpi-retrasos">-</span>
+      <span class="kpi-pct" id="pct-retrasos"></span>
+    </div>
+    <div class="kpi-subtitle">% sobre el total de NC abiertas · emitidas desde 01/01/2025</div>
+    <div class="kpi-detail" id="detail-retrasos"></div>
+  </div>
+</div>
+
+<!-- SECCIÓN DE ANÁLISIS DETALLADO -->
+<h2 class="section-title">Análisis Detallado</h2>
+<div class="dash-tabs">
+  <button class="dash-tab active" data-view="eficaces">TNCs Cerradas Eficaces</button>
+  <button class="dash-tab" data-view="ineficaces">TNCs No Eficaces</button>
+  <button class="dash-tab" data-view="retrasos">NC Abiertas/Vencidas >180d</button>
+</div>
+
+<!-- Tabla de TNCs Cerradas Eficaces -->
+<div id="view-eficaces" class="view-content">
+  <div class="filter-group">
+    <div class="filter-control">
+      <label>Buscar descripción</label>
+      <input type="text" id="filter-search-eficaces" placeholder="Ej: procedimiento, proceso...">
+    </div>
+    <div class="filter-control">
+      <label>Emisor</label>
+      <select id="filter-emisor-eficaces">
+        <option value="">- Todos -</option>
+      </select>
+    </div>
+    <button class="reset-btn" onclick="resetFiltersEficaces()">Limpiar filtros</button>
+  </div>
+  
+  <table id="table-eficaces">
+    <thead>
+      <tr>
+        <th>N° TNC</th>
+        <th>Fecha de Cierre</th>
+        <th>Emisor</th>
+        <th>Área</th>
+        <th>Descripción</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-eficaces">
+      <tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Cargando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Tabla de TNCs No Eficaces -->
+<div id="view-ineficaces" class="view-content" style="display:none;">
+  <div class="filter-group">
+    <div class="filter-control">
+      <label>Buscar descripción</label>
+      <input type="text" id="filter-search-ineficaces" placeholder="Ej: procedimiento, proceso...">
+    </div>
+    <div class="filter-control">
+      <label>Emisor</label>
+      <select id="filter-emisor-ineficaces">
+        <option value="">- Todos -</option>
+      </select>
+    </div>
+    <button class="reset-btn" onclick="resetFiltersIneficaces()">Limpiar filtros</button>
+  </div>
+  
+  <table id="table-ineficaces">
+    <thead>
+      <tr>
+        <th>N° TNC</th>
+        <th>Fecha de Cierre</th>
+        <th>Emisor</th>
+        <th>Área</th>
+        <th>Descripción</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-ineficaces">
+      <tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Cargando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Tabla de NC Abiertas/Vencidas -->
+<div id="view-retrasos" class="view-content" style="display:none;">
+  <div class="filter-group">
+    <div class="filter-control">
+      <label>Buscar descripción</label>
+      <input type="text" id="filter-search-retrasos" placeholder="Ej: seguridad, proceso...">
+    </div>
+    <div class="filter-control">
+      <label>Emisor</label>
+      <select id="filter-emisor-retrasos">
+        <option value="">- Todos -</option>
+      </select>
+    </div>
+    <button class="reset-btn" onclick="resetFiltersRetrasos()">Limpiar filtros</button>
+  </div>
+  
+  <table id="table-retrasos">
+    <thead>
+      <tr>
+        <th>N° TNC</th>
+        <th>Días Abiertos</th>
+        <th>Emisor</th>
+        <th>Área</th>
+        <th>Descripción</th>
+      </tr>
+    </thead>
+    <tbody id="tbody-retrasos">
+      <tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Cargando...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// ============== ESTADO GLOBAL ==============
+let RAW = [];
+let EFICACES = [];
+let INEFICACES = [];
+let RETRASOS = [];
+let TOTAL_ABIERTAS = 0;
+let KPI_COUNTS = null;
+const FECHA_HOY = new Date(2026, 7, 28); // 28/08/2026
+const FECHA_1ANO_ATRAS = new Date(2025, 7, 28); // 28/08/2025
+const FECHA_FILTRO_EMISION = new Date(2025, 0, 1); // 01/01/2025 - filtro del dashboard SOGI
+
+// ============== UTILIDADES ==============
+function excelDateToString(serial){
+  if(typeof serial !== 'number') return serial ?? '';
+  const utcDays = Math.floor(serial - 25569);
+  const utcMs = utcDays * 86400 * 1000;
+  const d = new Date(utcMs);
+  const dd = String(d.getUTCDate()).padStart(2,'0');
+  const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function parseDDMMYYYY(str){
+  if(!str || typeof str !== 'string') return null;
+  const parts = str.split('/');
+  if(parts.length !== 3) return null;
+  const [dd, mm, yyyy] = parts.map(Number);
+  if(!dd || !mm || !yyyy) return null;
+  return new Date(yyyy, mm-1, dd);
+}
+
+function daysBetween(d1, d2){
+  return Math.round((d2 - d1) / 86400000);
+}
+
+function decodeHtmlEntities(str){
+  if(typeof str !== 'string' || str.indexOf('&') === -1) return str;
+  const ta = document.createElement('textarea');
+  ta.innerHTML = str;
+  return ta.value;
+}
+
+// ============== PROCESAMIENTO DE DATOS ==============
+function procesarDatos(rawRows){
+  const REQUIRED_COLUMNS = ['COD','Status TNC','Numero TNC','Descripción','Emisor','Fecha de Emisión','Área'];
+  
+  function findHeaderRowIndex(rows){
+    for(let i=0; i<Math.min(rows.length, 20); i++){
+      const row = rows[i] || [];
+      const values = row.map(v => (v??'').toString().trim());
+      if(values.includes('COD') && values.includes('Status TNC')) return i;
+    }
+    return -1;
+  }
+  
+  const headerIdx = findHeaderRowIndex(rawRows);
+  if(headerIdx === -1) throw new Error('No se encontraron encabezados');
+  
+  const headers = rawRows[headerIdx].map(h => (h??'').toString().trim());
+  const missing = REQUIRED_COLUMNS.filter(c => !headers.includes(c));
+  if(missing.length) throw new Error(`Faltan columnas: ${missing.join(', ')}`);
+  
+  const dataRows = rawRows.slice(headerIdx+1).map(r=>{
+    const obj = {};
+    headers.forEach((h,i)=> obj[h] = r[i]);
+    return obj;
+  });
+  
+  const normalized = dataRows.filter(r => r['COD'] && r['COD'] != null).map(r=>{
+    const row = {};
+    ['COD','Status TNC','Numero TNC','Descripción','Emisor','Fecha de Emisión','Área','Aplicabilidad','Fecha de cierre','Cuestiones pendientes','Informe de Evaluación'].forEach(col=>{
+      let val = r[col];
+      if(val === undefined || val === null) val = '';
+      if(typeof val === 'string') val = val.trim();
+      row[col] = val;
+    });
+    return row;
+  });
+  
+  // Deduplicar por Numero TNC
+  const seen = new Set();
+  const deduped = [];
+  normalized.forEach(r=>{
+    if(seen.has(r['Numero TNC'])) return;
+    seen.add(r['Numero TNC']);
+    deduped.push(r);
+  });
+  
+  return deduped;
+}
+
+function calcularKPIs(data){
+  const eficaces = [];
+  const ineficaces = [];
+  const retrasos = [];
+  let totalAbiertas = 0;
+  
+  data.forEach(row => {
+    // KPI 1 & 2: TNCs cerradas (eficaces e ineficaces) en último año
+    if(row['Status TNC'] === 'Completado'){
+      const fechaCierre = parseDDMMYYYY(row['Fecha de cierre']);
+      if(fechaCierre && fechaCierre >= FECHA_1ANO_ATRAS && fechaCierre <= FECHA_HOY){
+        const informeEvaluacion = (row['Informe de Evaluación'] || '').trim().toLowerCase();
+        
+        // Eficaz = "Eficaz"
+        if(informeEvaluacion === 'eficaz'){
+          eficaces.push(row);
+        }
+        // Ineficaz = "Não Eficaz" o "No Eficaz"
+        else if(informeEvaluacion === 'não eficaz' || informeEvaluacion === 'no eficaz'){
+          ineficaces.push(row);
+        }
+      }
+    }
+    
+    // KPI 3: NC abiertas/vencidas >180 días
+    // Criterio SOGI: Status Pendiente/Monitoreada/Caducada + Aplicabilidad=Real + emitidas desde 01/01/2025
+    if(row['Status TNC'].match(/Pendiente|Monitoreada|Caducada/i)){
+      const aplicabilidad = (row['Aplicabilidad'] || '').trim();
+      if(aplicabilidad === 'Real'){
+        const fechaEmision = parseDDMMYYYY(row['Fecha de Emisión']);
+        if(fechaEmision && fechaEmision >= FECHA_FILTRO_EMISION){
+          totalAbiertas++;
+          const diasAbiertos = daysBetween(fechaEmision, FECHA_HOY);
+          if(diasAbiertos > 180){
+            retrasos.push({...row, diasAbiertos});
+          }
+        }
+      }
+    }
+  });
+  
+  EFICACES = eficaces.sort((a,b) => parseDDMMYYYY(b['Fecha de cierre']) - parseDDMMYYYY(a['Fecha de cierre']));
+  INEFICACES = ineficaces.sort((a,b) => parseDDMMYYYY(b['Fecha de cierre']) - parseDDMMYYYY(a['Fecha de cierre']));
+  RETRASOS = retrasos.sort((a,b) => b.diasAbiertos - a.diasAbiertos);
+  TOTAL_ABIERTAS = totalAbiertas;
+  
+  return {eficaces: EFICACES.length, ineficaces: INEFICACES.length, retrasos: RETRASOS.length, totalAbiertas};
+}
+
+function renderKPIs(counts){
+  KPI_COUNTS = counts;
+  
+  const totalCerradas = counts.eficaces + counts.ineficaces;
+  const pctEficaces = totalCerradas > 0 ? Math.round((counts.eficaces/totalCerradas)*100) : 0;
+  const pctIneficaces = totalCerradas > 0 ? Math.round((counts.ineficaces/totalCerradas)*100) : 0;
+  const pctRetrasos = counts.totalAbiertas > 0 ? Math.round((counts.retrasos/counts.totalAbiertas)*100) : 0;
+  
+  document.getElementById('kpi-eficaces').textContent = counts.eficaces;
+  document.getElementById('pct-eficaces').textContent = pctEficaces + '%';
+  document.getElementById('kpi-ineficaces').textContent = counts.ineficaces;
+  document.getElementById('pct-ineficaces').textContent = pctIneficaces + '%';
+  document.getElementById('kpi-retrasos').textContent = counts.retrasos;
+  document.getElementById('pct-retrasos').textContent = pctRetrasos + '%';
+  
+  document.getElementById('detail-eficaces').innerHTML = 
+    `Período: 28/08/2025 - 28/08/2026<br>Total cerradas: ${totalCerradas}`;
+  
+  document.getElementById('detail-ineficaces').innerHTML = 
+    `Período: 28/08/2025 - 28/08/2026<br>Total cerradas: ${totalCerradas}`;
+  
+  document.getElementById('detail-retrasos').innerHTML = 
+    `Total NC abiertas: ${counts.totalAbiertas}${RETRASOS.length > 0 ? `<br>Promedio: ${Math.round(RETRASOS.reduce((a,r) => a+r.diasAbiertos, 0)/RETRASOS.length)} días abiertas` : ''}`;
+  
+  document.getElementById('downloadBtn').disabled = false;
+  
+  renderTablaEficaces(EFICACES);
+  renderTablaIneficaces(INEFICACES);
+  renderTablaRetrasos(RETRASOS);
+  poblarEmisores();
+}
+
+// ============== INFORME PDF EJECUTIVO ==============
+function limpiarTexto(s){
+  return (s || '').toString().replace(/\n+/g, ' ').replace(/\s+/g, ' ').replace(/\*/g, '').trim();
+}
+
+function descargarInforme(){
+  if(!KPI_COUNTS) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const c = KPI_COUNTS;
+  const totalCerradas = c.eficaces + c.ineficaces;
+  const pctEficaces = totalCerradas > 0 ? Math.round((c.eficaces/totalCerradas)*100) : 0;
+  const pctIneficaces = totalCerradas > 0 ? Math.round((c.ineficaces/totalCerradas)*100) : 0;
+  const pctRetrasos = c.totalAbiertas > 0 ? Math.round((c.retrasos/c.totalAbiertas)*100) : 0;
+  const promedioDias = RETRASOS.length > 0 ? Math.round(RETRASOS.reduce((a,r) => a+r.diasAbiertos, 0)/RETRASOS.length) : 0;
+  const fechaGen = new Date().toLocaleString('es-CL');
+  
+  // --- Encabezado ---
+  doc.setFillColor(82, 37, 130);
+  doc.rect(0, 0, 210, 30, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(17);
+  doc.setFont(undefined, 'bold');
+  doc.text('Informe Ejecutivo SGI - Análisis de TNC', 14, 13);
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Período de análisis: 28/08/2025 - 28/08/2026  |  Generado: ${fechaGen}`, 14, 21);
+  
+  // --- Tarjetas KPI ---
+  const cards = [
+    {titulo:'TNCs CERRADAS EFICACES', num:`${c.eficaces}`, pct:`${pctEficaces}%`, sub:`de ${totalCerradas} cerradas en el año`, color:[31,168,116]},
+    {titulo:'TNCs NO EFICACES', num:`${c.ineficaces}`, pct:`${pctIneficaces}%`, sub:`de ${totalCerradas} cerradas en el año`, color:[209,69,69]},
+    {titulo:'NC ABIERTAS >180 DÍAS', num:`${c.retrasos}`, pct:`${pctRetrasos}%`, sub:`de ${c.totalAbiertas} NC abiertas · prom. ${promedioDias} días`, color:[209,69,69]}
+  ];
+  
+  let x = 14;
+  cards.forEach(card => {
+    doc.setDrawColor(...card.color);
+    doc.setLineWidth(0.8);
+    doc.roundedRect(x, 38, 58, 34, 2, 2);
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(7.5);
+    doc.setFont(undefined, 'bold');
+    doc.text(card.titulo, x + 29, 45, {align:'center'});
+    doc.setTextColor(...card.color);
+    doc.setFontSize(22);
+    doc.text(`${card.num}`, x + 20, 58, {align:'center'});
+    doc.setFontSize(14);
+    doc.text(`${card.pct}`, x + 42, 58, {align:'center'});
+    doc.setTextColor(110, 110, 110);
+    doc.setFontSize(6.5);
+    doc.setFont(undefined, 'normal');
+    doc.text(card.sub, x + 29, 67, {align:'center'});
+    x += 62;
+  });
+  
+  // --- Resumen ejecutivo ---
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text('Resumen Ejecutivo', 14, 84);
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  const resumen = 
+    `En los últimos 12 meses se cerraron ${totalCerradas} TNCs, de las cuales ${c.eficaces} (${pctEficaces}%) fueron evaluadas como Eficaces y ` +
+    `${c.ineficaces} (${pctIneficaces}%) como No Eficaces. Actualmente existen ${c.totalAbiertas} No Conformidades abiertas (Aplicabilidad Real, ` +
+    `emitidas desde 01/01/2025), de las cuales ${c.retrasos} (${pctRetrasos}%) superan los 180 días abiertas, con un promedio de ${promedioDias} días.`;
+  const lineas = doc.splitTextToSize(resumen, 182);
+  doc.text(lineas, 14, 90);
+  
+  let yPos = 90 + lineas.length * 4.5 + 6;
+  
+  // --- Tabla: No Eficaces ---
+  if(INEFICACES.length > 0){
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(40, 40, 40);
+    doc.text(`TNCs Cerradas como No Eficaces (${INEFICACES.length})`, 14, yPos);
+    doc.autoTable({
+      startY: yPos + 3,
+      head: [['N° TNC', 'Fecha Cierre', 'Emisor', 'Área', 'Descripción']],
+      body: INEFICACES.map(r => [
+        r['Numero TNC'], r['Fecha de cierre'], limpiarTexto(r['Emisor']),
+        limpiarTexto(r['Área']).substring(0, 30), limpiarTexto(r['Descripción']).substring(0, 90)
+      ]),
+      styles: {fontSize: 7, cellPadding: 1.5},
+      headStyles: {fillColor: [82, 37, 130], fontSize: 7.5},
+      columnStyles: {0:{cellWidth:14}, 1:{cellWidth:20}, 2:{cellWidth:35}, 3:{cellWidth:32}, 4:{cellWidth:'auto'}},
+      margin: {left: 14, right: 14}
+    });
+    yPos = doc.lastAutoTable.finalY + 10;
+  }
+  
+  // --- Tabla: NC Abiertas >180 días ---
+  if(RETRASOS.length > 0){
+    if(yPos > 240){ doc.addPage(); yPos = 20; }
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(40, 40, 40);
+    doc.text(`NC Abiertas/Vencidas con más de 180 días (${RETRASOS.length})`, 14, yPos);
+    doc.autoTable({
+      startY: yPos + 3,
+      head: [['N° TNC', 'Días', 'Status', 'Emisor', 'Área', 'Descripción']],
+      body: RETRASOS.map(r => [
+        r['Numero TNC'], r.diasAbiertos, r['Status TNC'], limpiarTexto(r['Emisor']),
+        limpiarTexto(r['Área']).substring(0, 25), limpiarTexto(r['Descripción']).substring(0, 70)
+      ]),
+      styles: {fontSize: 7, cellPadding: 1.5},
+      headStyles: {fillColor: [82, 37, 130], fontSize: 7.5},
+      columnStyles: {0:{cellWidth:14}, 1:{cellWidth:11}, 2:{cellWidth:18}, 3:{cellWidth:33}, 4:{cellWidth:28}, 5:{cellWidth:'auto'}},
+      margin: {left: 14, right: 14},
+      didParseCell: function(data){
+        if(data.section === 'body' && data.column.index === 1 && parseInt(data.cell.raw) > 365){
+          data.cell.styles.textColor = [209, 69, 69];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    });
+  }
+  
+  // --- Pie de página en todas las hojas ---
+  const totalPaginas = doc.internal.getNumberOfPages();
+  for(let i = 1; i <= totalPaginas; i++){
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(140, 140, 140);
+    doc.text(`ODATA SGI - Análisis de TNC  |  Página ${i} de ${totalPaginas}`, 105, 292, {align:'center'});
+  }
+  
+  doc.save(`Informe_Ejecutivo_TNC_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+function renderTablaEficaces(data){
+  const tbody = document.getElementById('tbody-eficaces');
+  if(data.length === 0){
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">No hay datos</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>${r['Numero TNC']}</strong></td>
+      <td>${r['Fecha de cierre']}</td>
+      <td>${r['Emisor']}</td>
+      <td>${r['Área']}</td>
+      <td style="max-width:300px;word-wrap:break-word;font-size:.85rem;">${(r['Descripción'] || '').substring(0,100)}...</td>
+    </tr>
+  `).join('');
+}
+
+function renderTablaIneficaces(data){
+  const tbody = document.getElementById('tbody-ineficaces');
+  if(data.length === 0){
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">No hay datos</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>${r['Numero TNC']}</strong></td>
+      <td>${r['Fecha de cierre']}</td>
+      <td>${r['Emisor'] || '-'}</td>
+      <td>${r['Área']}</td>
+      <td style="max-width:300px;word-wrap:break-word;font-size:.85rem;">${(r['Descripción'] || '').substring(0,100)}...</td>
+    </tr>
+  `).join('');
+}
+
+function renderTablaRetrasos(data){
+  const tbody = document.getElementById('tbody-retrasos');
+  if(data.length === 0){
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">No hay datos</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>${r['Numero TNC']}</strong></td>
+      <td><span class="status-badge status-pending">${r.diasAbiertos} días</span></td>
+      <td>${r['Emisor']}</td>
+      <td>${r['Área']}</td>
+      <td style="max-width:300px;word-wrap:break-word;font-size:.85rem;">${(r['Descripción'] || '').substring(0,100)}...</td>
+    </tr>
+  `).join('');
+}
+
+function poblarEmisores(){
+  const emisoresEficaces = [...new Set(EFICACES.map(r => r['Emisor']).filter(e => e))].sort();
+  const emisoresIneficaces = [...new Set(INEFICACES.map(r => r['Emisor']).filter(e => e))].sort();
+  const emisoresRetrasos = [...new Set(RETRASOS.map(r => r['Emisor']).filter(e => e))].sort();
+  
+  const selectEficaces = document.getElementById('filter-emisor-eficaces');
+  selectEficaces.innerHTML = '<option value="">- Todos -</option>' + 
+    emisoresEficaces.map(e => `<option value="${e}">${e}</option>`).join('');
+  
+  const selectIneficaces = document.getElementById('filter-emisor-ineficaces');
+  selectIneficaces.innerHTML = '<option value="">- Todos -</option>' + 
+    emisoresIneficaces.map(e => `<option value="${e}">${e}</option>`).join('');
+  
+  const selectRetrasos = document.getElementById('filter-emisor-retrasos');
+  selectRetrasos.innerHTML = '<option value="">- Todos -</option>' + 
+    emisoresRetrasos.map(e => `<option value="${e}">${e}</option>`).join('');
+}
+
+function aplicarFiltrosEficaces(){
+  const search = document.getElementById('filter-search-eficaces').value.toLowerCase();
+  const emisor = document.getElementById('filter-emisor-eficaces').value;
+  
+  const filtered = EFICACES.filter(r => {
+    const matchSearch = !search || r['Descripción'].toLowerCase().includes(search) || 
+                        r['Área'].toLowerCase().includes(search);
+    const matchEmisor = !emisor || r['Emisor'] === emisor;
+    return matchSearch && matchEmisor;
+  });
+  
+  renderTablaEficaces(filtered);
+}
+
+function aplicarFiltrosRetrasos(){
+  const search = document.getElementById('filter-search-retrasos').value.toLowerCase();
+  const emisor = document.getElementById('filter-emisor-retrasos').value;
+  
+  const filtered = RETRASOS.filter(r => {
+    const matchSearch = !search || r['Descripción'].toLowerCase().includes(search) || 
+                        r['Área'].toLowerCase().includes(search);
+    const matchEmisor = !emisor || r['Emisor'] === emisor;
+    return matchSearch && matchEmisor;
+  });
+  
+  renderTablaRetrasos(filtered);
+}
+
+function resetFiltersEficaces(){
+  document.getElementById('filter-search-eficaces').value = '';
+  document.getElementById('filter-emisor-eficaces').value = '';
+  renderTablaEficaces(EFICACES);
+}
+
+function aplicarFiltrosIneficaces(){
+  const search = document.getElementById('filter-search-ineficaces').value.toLowerCase();
+  const emisor = document.getElementById('filter-emisor-ineficaces').value;
+  
+  const filtered = INEFICACES.filter(r => {
+    const matchSearch = !search || r['Descripción'].toLowerCase().includes(search) || 
+                        r['Área'].toLowerCase().includes(search) ||
+                        (r['Cuestiones pendientes'] || '').toLowerCase().includes(search);
+    const matchEmisor = !emisor || r['Emisor'] === emisor;
+    return matchSearch && matchEmisor;
+  });
+  
+  renderTablaIneficaces(filtered);
+}
+
+function resetFiltersIneficaces(){
+  document.getElementById('filter-search-ineficaces').value = '';
+  document.getElementById('filter-emisor-ineficaces').value = '';
+  renderTablaIneficaces(INEFICACES);
+}
+
+function resetFiltersRetrasos(){
+  document.getElementById('filter-search-retrasos').value = '';
+  document.getElementById('filter-emisor-retrasos').value = '';
+  renderTablaRetrasos(RETRASOS);
+}
+
+// ============== CARGA DE EXCEL ==============
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadStatus = document.getElementById('uploadStatus');
+
+function setUploadStatus(msg, kind){
+  uploadStatus.textContent = msg;
+  uploadStatus.className = 'upload-status' + (kind ? ' '+kind : '');
+}
+
+uploadBtn.addEventListener('click', () => fileInput.click());
+document.getElementById('downloadBtn').addEventListener('click', descargarInforme);
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  
+  setUploadStatus('Leyendo archivo...');
+  const reader = new FileReader();
+  
+  reader.onload = (evt) => {
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:false});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:'', blankrows:false});
+      
+      if(!rawRows.length){
+        setUploadStatus('El archivo está vacío', 'error');
+        return;
+      }
+      
+      const processed = procesarDatos(rawRows);
+      const counts = calcularKPIs(processed);
+      renderKPIs(counts);
+      setUploadStatus('✓ Archivo cargado correctamente', 'success');
+      
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleString('es-ES');
+    }catch(err){
+      console.error(err);
+      setUploadStatus(`Error: ${err.message}`, 'error');
+    }
+  };
+  
+  reader.onerror = () => setUploadStatus('Error al leer el archivo', 'error');
+  reader.readAsArrayBuffer(file);
+  fileInput.value = '';
+});
+
+// ============== NAVEGACIÓN DE VISTAS ==============
+document.querySelectorAll('.dash-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view-content').forEach(v => v.style.display = 'none');
+    
+    tab.classList.add('active');
+    const view = tab.getAttribute('data-view');
+    document.getElementById(`view-${view}`).style.display = 'block';
+  });
+});
+
+// ============== FILTROS ==============
+document.getElementById('filter-search-eficaces').addEventListener('input', aplicarFiltrosEficaces);
+document.getElementById('filter-emisor-eficaces').addEventListener('change', aplicarFiltrosEficaces);
+document.getElementById('filter-search-ineficaces').addEventListener('input', aplicarFiltrosIneficaces);
+document.getElementById('filter-emisor-ineficaces').addEventListener('change', aplicarFiltrosIneficaces);
+document.getElementById('filter-search-retrasos').addEventListener('input', aplicarFiltrosRetrasos);
+document.getElementById('filter-emisor-retrasos').addEventListener('change', aplicarFiltrosRetrasos);
+
+// ============== TEMA ==============
+const themeToggle = document.getElementById('themeToggle');
+let currentTheme = 'light';
+themeToggle.addEventListener('click', () => {
+  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  if(currentTheme === 'dark'){
+    document.documentElement.setAttribute('data-theme', 'dark');
+    themeToggle.textContent = '☀️';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    themeToggle.textContent = '🌙';
+  }
+});
+
+// Mensaje inicial
+setUploadStatus('Carga un Excel para comenzar', '');
+</script>
+
+</body>
+</html>
