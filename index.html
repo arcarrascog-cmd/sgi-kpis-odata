@@ -230,7 +230,7 @@
   .kpi-card.pending .kpi-value { color: var(--amber); }
   .kpi-card.monitored .kpi-value { color: var(--green); }
 
-  .kpi-subtitle { font-size: 0.78rem; opacity: 0.75; }
+  .kpi-subtitle { font-size: 0.95rem; font-weight: 600; opacity: 0.9; }
 
   .stats-row {
     display: grid;
@@ -471,6 +471,62 @@
   .status-chip.active-monitoreada { background: var(--green); border-color: var(--green); color: #fff; }
   .status-chip.active-caducada { background: var(--red); border-color: var(--red); color: #fff; }
 
+
+  /* ===== OBJETIVOS ESTRATÉGICOS ===== */
+  .obj-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+    margin-bottom: 30px;
+  }
+
+  .obj-card {
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: 0 4px 20px rgba(42, 14, 79, 0.06);
+    border-left: 6px solid var(--border);
+  }
+
+  .obj-card.ok { border-left-color: var(--green); }
+  .obj-card.warn { border-left-color: var(--amber); }
+  .obj-card.bad { border-left-color: var(--red); }
+
+  .obj-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    min-height: 34px;
+  }
+
+  .obj-value {
+    font-size: 2.3rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .obj-card.ok .obj-value { color: var(--green); }
+  .obj-card.warn .obj-value { color: #c98a25; }
+  .obj-card.bad .obj-value { color: var(--red); }
+
+  .obj-detail { font-size: 0.76rem; color: var(--text-dim); margin-top: 6px; }
+
+  .obj-metas {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .obj-meta-chip {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: #f3eefb;
+    color: var(--primary);
+  }
+
   .last-update {
     font-size: 0.76rem;
     color: var(--text-dim);
@@ -522,10 +578,7 @@
       <option value="">- Todos -</option>
     </select>
   </div>
-  <div class="days-counter">
-    <div class="dc-num" id="dias-periodo">365</div>
-    <div class="dc-label">días</div>
-  </div>
+
 </div>
 
 <div class="tabs">
@@ -566,6 +619,30 @@
       <div class="kpi-label">Retrasos >180d</div>
       <div class="kpi-value" id="kpi-retrasos">0</div>
       <div class="kpi-subtitle" id="pct-retrasos">0% del total abiertas</div>
+    </div>
+  </div>
+
+  <div class="section-obj">
+    <div style="font-size:1rem; font-weight:700; margin:4px 0 14px;">🎯 Objetivos Estratégicos SGI</div>
+    <div class="obj-grid">
+      <div class="obj-card" id="obj1">
+        <div class="obj-name">Planes correctivos con +180 días abiertos<br><span style="font-weight:400;">(corte semestral · foto actual)</span></div>
+        <div class="obj-value" id="obj1-val">–</div>
+        <div class="obj-detail" id="obj1-det"></div>
+        <div class="obj-metas"><span class="obj-meta-chip">Meta 0%</span><span class="obj-meta-chip">Límite 5%</span></div>
+      </div>
+      <div class="obj-card" id="obj2">
+        <div class="obj-name">Planes de acción no eficaces<br><span style="font-weight:400;">(en el período seleccionado)</span></div>
+        <div class="obj-value" id="obj2-val">–</div>
+        <div class="obj-detail" id="obj2-det"></div>
+        <div class="obj-metas"><span class="obj-meta-chip">Meta 5%</span><span class="obj-meta-chip">Límite 10%</span></div>
+      </div>
+      <div class="obj-card" id="obj3">
+        <div class="obj-name">Planes de acción reincidentes<br><span style="font-weight:400;">(emitidas en el período seleccionado)</span></div>
+        <div class="obj-value" id="obj3-val">–</div>
+        <div class="obj-detail" id="obj3-det"></div>
+        <div class="obj-metas"><span class="obj-meta-chip">Meta 5%</span><span class="obj-meta-chip">Límite 10%</span></div>
+      </div>
     </div>
   </div>
 
@@ -686,7 +763,7 @@
           <th>TNC</th>
           <th>Fecha Cierre</th>
           <th>Emisor</th>
-          <th>Área</th>
+          <th>Descripción</th>
           <th>Cuestiones Pendientes</th>
         </tr>
       </thead>
@@ -725,7 +802,7 @@
           <th>Días Abiertos</th>
           <th>Status</th>
           <th>Emisor</th>
-          <th>Área</th>
+          <th>Descripción</th>
         </tr>
       </thead>
       <tbody id="tbody-retrasos">
@@ -804,6 +881,7 @@ function procesarDatos(rawRows){
     else if(lower.includes('fecha de emision')) colIdx.fechaEmision = i;
     else if(lower.includes('informe') && lower.includes('evaluac')) colIdx.eval = i;
     else if(lower.includes('aplicabilidad')) colIdx.aplicabilidad = i;
+    else if(lower.includes('reincidente')) colIdx.reinc = i;
     else if(lower.startsWith('descripcion') || lower.includes('descripcion')) { if(colIdx.descripcion === undefined) colIdx.descripcion = i; }
     else if(lower === 'emisor' || lower.includes('emisor')) { if(colIdx.emisor === undefined) colIdx.emisor = i; }
     else if(lower === 'area' || lower.startsWith('area')) { if(colIdx.area === undefined) colIdx.area = i; }
@@ -835,6 +913,7 @@ function procesarDatos(rawRows){
       'Fecha de Emisión': celda(row, colIdx.fechaEmision),
       'Informe de Evaluación': normalizar(celda(row, colIdx.eval)),
       'Aplicabilidad': celda(row, colIdx.aplicabilidad),
+      'Reincidente': celda(row, colIdx.reinc),
       'Descripción': celda(row, colIdx.descripcion),
       'Emisor': celda(row, colIdx.emisor),
       'Área': celda(row, colIdx.area),
@@ -878,6 +957,19 @@ function calcularKPIs(data){
     }
   });
 
+  // Reincidentes: emitidas Reales dentro del período seleccionado
+  const setEmitidas = new Set(), setReinc = new Set();
+  data.forEach(row => {
+    const num = row['Numero TNC'];
+    if(setEmitidas.has(num)) return;
+    if(normalizar(row['Aplicabilidad']) !== 'real') return;
+    const fe = parseDDMMYYYY(row['Fecha de Emisión']);
+    if(fe && fe >= PERIODO_DESDE && fe <= PERIODO_HASTA){
+      setEmitidas.add(num);
+      if(normalizar(row['Reincidente']) === 'si') setReinc.add(num);
+    }
+  });
+
   // Prioridad de clasificación: No Eficaz > Eficaz > Sin Evaluación (1 vez por TNC)
   const numsIneficaces = [...setIneficaz];
   const numsEficaces = [...setEficaz].filter(n => !setIneficaz.has(n));
@@ -900,8 +992,34 @@ function calcularKPIs(data){
     pendientes: setPend.size,
     monitoreadas: setMon.size,
     caducadas: setCad.size,
-    retrasos: setRetraso.size
+    retrasos: setRetraso.size,
+    emitidas: setEmitidas.size,
+    reincidentes: setReinc.size
   };
+}
+
+function semaforo(el, valor, meta, limite){
+  el.classList.remove('ok','warn','bad');
+  if(valor <= meta) el.classList.add('ok');
+  else if(valor <= limite) el.classList.add('warn');
+  else el.classList.add('bad');
+}
+
+function renderObjetivos(c){
+  const p1 = c.totalAbiertas > 0 ? Math.round((c.retrasos/c.totalAbiertas)*1000)/10 : 0;
+  document.getElementById('obj1-val').textContent = p1 + '%';
+  document.getElementById('obj1-det').textContent = c.retrasos + ' de ' + c.totalAbiertas + ' NC abiertas';
+  semaforo(document.getElementById('obj1'), p1, 0, 5);
+
+  const p2 = c.totalCerradas > 0 ? Math.round((c.ineficaces/c.totalCerradas)*1000)/10 : 0;
+  document.getElementById('obj2-val').textContent = p2 + '%';
+  document.getElementById('obj2-det').textContent = c.ineficaces + ' de ' + c.totalCerradas + ' TNC cerradas';
+  semaforo(document.getElementById('obj2'), p2, 5, 10);
+
+  const p3 = c.emitidas > 0 ? Math.round((c.reincidentes/c.emitidas)*1000)/10 : 0;
+  document.getElementById('obj3-val').textContent = p3 + '%';
+  document.getElementById('obj3-det').textContent = c.reincidentes + ' de ' + c.emitidas + ' TNC emitidas (Reales)';
+  semaforo(document.getElementById('obj3'), p3, 5, 10);
 }
 
 function renderCharts(counts){
@@ -990,10 +1108,10 @@ function renderKPIs(counts){
   const pctSinEval = counts.totalCerradas > 0 ? Math.round((counts.sinEvaluacion/counts.totalCerradas)*100) : 0;
 
   document.getElementById('kpi-total').textContent = counts.totalCerradas;
-  document.getElementById('kpi-ineficaces').textContent = counts.ineficaces;
-  document.getElementById('pct-ineficaces').textContent = pctIneficaces + '%';
-  document.getElementById('kpi-sin-eval').textContent = counts.sinEvaluacion;
-  document.getElementById('pct-sin-eval').textContent = pctSinEval + '%';
+  document.getElementById('kpi-ineficaces').textContent = pctIneficaces + '%';
+  document.getElementById('pct-ineficaces').textContent = counts.ineficaces + ' TNCs';
+  document.getElementById('kpi-sin-eval').textContent = pctSinEval + '%';
+  document.getElementById('pct-sin-eval').textContent = counts.sinEvaluacion + ' TNCs';
   document.getElementById('kpi-abiertas').textContent = counts.totalAbiertas;
 
   document.getElementById('stat-eficacia').textContent = pctEficaces;
@@ -1001,10 +1119,11 @@ function renderKPIs(counts){
   document.getElementById('stat-pendientes').textContent = counts.pendientes;
   document.getElementById('stat-monitoreadas').textContent = counts.monitoreadas;
   document.getElementById('stat-caducadas').textContent = counts.caducadas;
-  document.getElementById('kpi-retrasos').textContent = counts.retrasos;
   const pctRetrasos = counts.totalAbiertas > 0 ? Math.round((counts.retrasos/counts.totalAbiertas)*1000)/10 : 0;
-  document.getElementById('pct-retrasos').textContent = pctRetrasos + '% del total abiertas';
+  document.getElementById('kpi-retrasos').textContent = pctRetrasos + '%';
+  document.getElementById('pct-retrasos').textContent = counts.retrasos + ' de ' + counts.totalAbiertas + ' abiertas';
 
+  renderObjetivos(counts);
   renderCharts(counts);
   renderTablaEficaces(EFICACES);
   renderTablaIneficaces(INEFICACES);
@@ -1028,7 +1147,7 @@ function renderTablaEficaces(data){
     <tr>
       <td><strong>TNC ${r['Numero TNC']}</strong></td>
       <td>${r['Fecha de cierre']}</td>
-      <td>${r['Emisor']}</td>
+      <td>${primerNombre(r['Emisor'])}</td>
       <td>${r['Área']}</td>
       <td style="max-width:300px; word-wrap:break-word; font-size:0.85rem;">${(r['Descripción'] || '').substring(0,100)}...</td>
     </tr>
@@ -1051,13 +1170,18 @@ function renderTablaIneficaces(data){
     <tr>
       <td><strong>TNC ${r['Numero TNC']}</strong></td>
       <td>${r['Fecha de cierre']}</td>
-      <td>${r['Emisor']}</td>
-      <td>${r['Área']}</td>
+      <td>${primerNombre(r['Emisor'])}</td>
+      <td style="max-width:380px; word-wrap:break-word; font-size:0.82rem;">${descCorta(r)}</td>
       <td style="max-width:300px; word-wrap:break-word; font-size:0.85rem;">${(r['Cuestiones pendientes'] || '').substring(0,100)}...</td>
     </tr>
   `).join('');
 
   count.textContent = `${data.length} registros`;
+}
+
+function descCorta(r){
+  const d = String(r['Descripción'] || '').replace(/[\r\n]+/g, ' ').trim();
+  return d.length > 180 ? d.substring(0,180) + '…' : d;
 }
 
 function renderTablaRetrasos(data){
@@ -1075,8 +1199,8 @@ function renderTablaRetrasos(data){
       <td><strong>TNC ${r['Numero TNC']}</strong></td>
       <td><span class="status-badge status-expired">${r.diasAbiertos} días</span></td>
       <td><span class="status-badge ${normalizar(r['Status TNC']) === 'pendiente' ? 'status-pending' : (normalizar(r['Status TNC']) === 'caducada' ? 'status-expired' : 'status-monitored')}">${r['Status TNC']}</span></td>
-      <td>${r['Emisor']}</td>
-      <td>${r['Área']}</td>
+      <td>${primerNombre(r['Emisor'])}</td>
+      <td style="max-width:420px; word-wrap:break-word; font-size:0.82rem;">${descCorta(r)}</td>
     </tr>
   `).join('');
 
@@ -1084,9 +1208,9 @@ function renderTablaRetrasos(data){
 }
 
 function poblarEmisores(){
-  const emisoresEficaces = [...new Set(EFICACES.map(r => r['Emisor']).filter(e => e))].sort();
-  const emisoresIneficaces = [...new Set(INEFICACES.map(r => r['Emisor']).filter(e => e))].sort();
-  const emisoresRetrasos = [...new Set(TODAS_ABIERTAS.map(r => r['Emisor']).filter(e => e))].sort();
+  const emisoresEficaces = [...new Set(EFICACES.map(r => primerNombre(r['Emisor'])).filter(e => e && e !== '(sin emisor)'))].sort();
+  const emisoresIneficaces = [...new Set(INEFICACES.map(r => primerNombre(r['Emisor'])).filter(e => e && e !== '(sin emisor)'))].sort();
+  const emisoresRetrasos = [...new Set(TODAS_ABIERTAS.map(r => primerNombre(r['Emisor'])).filter(e => e && e !== '(sin emisor)'))].sort();
 
   [
     {sel: 'emisor-eficaces', arr: emisoresEficaces},
@@ -1105,7 +1229,7 @@ function filtrarTabla(search, emisor, data){
       r['Descripción'].toLowerCase().includes(search) ||
       r['Área'].toLowerCase().includes(search) ||
       String(r['Numero TNC']).includes(search);
-    const matchEmisor = !emisor || r['Emisor'] === emisor;
+    const matchEmisor = !emisor || primerNombre(r['Emisor']) === emisor;
     return matchSearch && matchEmisor;
   });
 }
@@ -1162,7 +1286,7 @@ fileInput.addEventListener('change', (e) => {
       if(!processed.length){ return; }
       DATA_GLOBAL = processed;
       poblarFiltroAnalistas();
-      const dataFiltrada = ANALISTA_SEL ? processed.filter(r => r['Emisor'] === ANALISTA_SEL) : processed;
+      const dataFiltrada = ANALISTA_SEL ? processed.filter(r => primerNombre(r['Emisor']) === ANALISTA_SEL) : processed;
       const counts = calcularKPIs(dataFiltrada);
       renderKPIs(counts);
       renderChartAnalistas();
@@ -1249,12 +1373,40 @@ document.getElementById('downloadBtn').addEventListener('click', function(){
   doc.setFont(undefined, 'normal');
   doc.text('Fecha del informe: ' + hoyStr, 14, 33);
 
+  // Objetivos estratégicos
+  const p1 = c.totalAbiertas > 0 ? Math.round((c.retrasos/c.totalAbiertas)*1000)/10 : 0;
+  const p2o = c.totalCerradas > 0 ? Math.round((c.ineficaces/c.totalCerradas)*1000)/10 : 0;
+  const p3 = c.emitidas > 0 ? Math.round((c.reincidentes/c.emitidas)*1000)/10 : 0;
+  const est = (v,m,l) => v <= m ? 'CUMPLE META' : (v <= l ? 'EN LIMITE' : 'FUERA DE LIMITE');
+  doc.setFontSize(12);
+  doc.setFont(undefined, 'bold');
+  doc.text('Objetivos Estratégicos SGI', 14, 43);
+  doc.autoTable({
+    startY: 47,
+    head: [['Indicador', 'Valor', 'Meta', 'Límite', 'Estado']],
+    body: [
+      ['Correctivos +180 días abiertos', p1 + '%', '0%', '5%', est(p1,0,5)],
+      ['No eficaces (período)', p2o + '%', '5%', '10%', est(p2o,5,10)],
+      ['Reincidentes (período)', p3 + '%', '5%', '10%', est(p3,5,10)]
+    ],
+    styles: {fontSize: 9},
+    headStyles: {fillColor: [82, 37, 130]},
+    didParseCell: function(d){
+      if(d.section === 'body' && d.column.index === 4){
+        const v = d.cell.raw;
+        d.cell.styles.fontStyle = 'bold';
+        d.cell.styles.textColor = v === 'CUMPLE META' ? [26,158,117] : (v === 'EN LIMITE' ? [201,138,37] : [209,69,69]);
+      }
+    }
+  });
+  let yObj = doc.lastAutoTable.finalY + 10;
+
   // Resumen de eficacia (cerradas último año)
   doc.setFontSize(12);
   doc.setFont(undefined, 'bold');
-  doc.text('1. Eficacia de TNCs cerradas (' + fmtCL(PERIODO_DESDE) + ' - ' + fmtCL(PERIODO_HASTA) + ')', 14, 43);
+  doc.text('1. Eficacia de TNCs cerradas (' + fmtCL(PERIODO_DESDE) + ' - ' + fmtCL(PERIODO_HASTA) + ')', 14, yObj);
   doc.autoTable({
-    startY: 47,
+    startY: yObj + 4,
     head: [['Categoría', 'TNCs', '%']],
     body: [
       ['Eficaces', String(c.eficaces), pct(c.eficaces) + '%'],
@@ -1296,10 +1448,10 @@ document.getElementById('downloadBtn').addEventListener('click', function(){
   doc.setTextColor(0, 0, 0);
   doc.autoTable({
     startY: y + 4,
-    head: [['TNC', 'Días Abiertos', 'Status', 'Fecha Emisión', 'Emisor', 'Área']],
+    head: [['TNC', 'Días', 'Status', 'Emisión', 'Emisor', 'Descripción']],
     body: TODAS_ABIERTAS.map(r => [
       r['Numero TNC'], String(r.diasAbiertos), r['Status TNC'],
-      r['Fecha de Emisión'], r['Emisor'], (r['Área'] || '').replace(/\n/g, ' ')
+      r['Fecha de Emisión'], primerNombre(r['Emisor']), String(r['Descripción'] || '').replace(/[\r\n]+/g, ' ').substring(0, 140)
     ]),
     styles: {fontSize: 8},
     headStyles: {fillColor: [209, 69, 69]},
@@ -1315,8 +1467,8 @@ document.getElementById('downloadBtn').addEventListener('click', function(){
     doc.text('4. TNCs No Eficaces (' + INEFICACES.length + ')', 14, y);
     doc.autoTable({
       startY: y + 4,
-      head: [['TNC', 'Fecha Cierre', 'Emisor', 'Área']],
-      body: INEFICACES.map(r => [r['Numero TNC'], r['Fecha de cierre'], r['Emisor'], (r['Área'] || '').replace(/\n/g, ' ')]),
+      head: [['TNC', 'Fecha Cierre', 'Emisor', 'Descripción']],
+      body: INEFICACES.map(r => [r['Numero TNC'], r['Fecha de cierre'], primerNombre(r['Emisor']), String(r['Descripción'] || '').replace(/[\r\n]+/g, ' ').substring(0, 140)]),
       styles: {fontSize: 8},
       headStyles: {fillColor: [82, 37, 130]}
     });
@@ -1339,18 +1491,11 @@ function leerPeriodo(){
   const hv = document.getElementById('periodo-hasta').value;
   if(dv){ const p = dv.split('-'); PERIODO_DESDE = new Date(p[0], p[1]-1, p[2]); }
   if(hv){ const p = hv.split('-'); PERIODO_HASTA = new Date(p[0], p[1]-1, p[2]); }
-  const counter = document.querySelector('.days-counter');
-  const num = document.getElementById('dias-periodo');
   if(PERIODO_DESDE > PERIODO_HASTA){
-    num.textContent = '⚠';
-    counter.style.background = 'linear-gradient(135deg, #8e1c3a, #e94560)';
     document.getElementById('periodo-label').textContent = '⚠ Rango inválido: "Desde" es posterior a "Hasta"';
     return false;
   }
-  counter.style.background = '';
-  const dias = daysBetween(PERIODO_DESDE, PERIODO_HASTA);
-  num.textContent = dias;
-  document.getElementById('periodo-label').textContent = 'Período de cierre: ' + fmtCL(PERIODO_DESDE) + ' – ' + fmtCL(PERIODO_HASTA) + ' (' + dias + ' días)';
+  document.getElementById('periodo-label').textContent = 'Período de cierre: ' + fmtCL(PERIODO_DESDE) + ' – ' + fmtCL(PERIODO_HASTA);
   return true;
 }
 
@@ -1358,12 +1503,16 @@ function aplicarPeriodo(){
   const ok = leerPeriodo();
   if(!ok){ setUploadStatus('⚠ Corrige el rango de fechas: "Desde" debe ser anterior a "Hasta"', 'error'); return; }
   if(DATA_GLOBAL){
-    const dataFiltrada = ANALISTA_SEL ? DATA_GLOBAL.filter(r => r['Emisor'] === ANALISTA_SEL) : DATA_GLOBAL;
+    const dataFiltrada = ANALISTA_SEL ? DATA_GLOBAL.filter(r => primerNombre(r['Emisor']) === ANALISTA_SEL) : DATA_GLOBAL;
     const counts = calcularKPIs(dataFiltrada);
     renderKPIs(counts);
     renderChartAnalistas();
     setUploadStatus('✓ Recalculado — ' + DIAG + ' | Cerradas: ' + counts.totalCerradas + ' | Abiertas Real: ' + counts.totalAbiertas + ' | >180d: ' + counts.retrasos, 'success');
   }
+}
+
+function primerNombre(nombre){
+  return String(nombre || '').trim().split(/\s+/)[0] || '(sin emisor)';
 }
 
 function abiertasPorAnalista(){
@@ -1381,7 +1530,7 @@ function abiertasPorAnalista(){
     const fe = parseDDMMYYYY(row['Fecha de Emisión']);
     if(!fe) return;
     vistos.add(num);
-    const em = row['Emisor'] || '(sin emisor)';
+    const em = primerNombre(row['Emisor']);
     porAnalista[em] = (porAnalista[em] || 0) + 1;
   });
   return porAnalista;
@@ -1429,7 +1578,7 @@ function renderChartAnalistas(){
 
 function poblarFiltroAnalistas(){
   const sel = document.getElementById('filtro-analista');
-  const emisores = [...new Set(DATA_GLOBAL.map(r => r['Emisor']).filter(e => e))].sort();
+  const emisores = [...new Set(DATA_GLOBAL.map(r => primerNombre(r['Emisor'])).filter(e => e && e !== '(sin emisor)'))].sort();
   const actual = sel.value;
   sel.innerHTML = '<option value="">- Todos -</option>' + emisores.map(e => `<option value="${e}">${e}</option>`).join('');
   sel.value = actual;
@@ -1451,7 +1600,7 @@ document.getElementById('filtro-analista').addEventListener('change', function()
 
 (function initPeriodo(){
   const hasta = new Date(); hasta.setHours(0,0,0,0);
-  const desde = new Date(hasta); desde.setFullYear(desde.getFullYear() - 1);
+  const desde = new Date(hasta.getFullYear(), 0, 1);  // año calendario
   document.getElementById('periodo-desde').value = toInputDate(desde);
   document.getElementById('periodo-hasta').value = toInputDate(hasta);
   leerPeriodo();
