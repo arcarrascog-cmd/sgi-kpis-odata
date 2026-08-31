@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ODATA SGI - KPIs Eficacia & Retrasos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root {
+    --primary: #522582;
+    --primary-light: #7a4fae;
+    --red: #d14545;
+    --amber: #d97c0d;
+    --green: #1fa874;
+    --bg: #f5f5f5;
+    --panel: #ffffff;
+    --text: #2b1838;
+    --text-dim: #7a6a8a;
+    --border: #e0e0e0;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+
+  .header {
+    margin-bottom: 28px;
+  }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .header h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #ffffff;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-light);
+  }
+
+  .btn-secondary {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .btn-secondary:hover {
+    background: #f9f9f9;
+  }
+
+  .upload-status {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: #f0f0f0;
+    color: var(--text-dim);
+  }
+
+  .upload-status.success {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .upload-status.error {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .tab {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 24px;
+    background: var(--panel);
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
+  }
+
+  .tab.active {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+  }
+
+  .tab:hover:not(.active) {
+    border-color: var(--primary);
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .kpi-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+  }
+
+  .kpi-card.total {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: #ffffff;
+    border: none;
+  }
+
+  .kpi-card.expired {
+    border-left: 4px solid var(--red);
+  }
+
+  .kpi-card.pending {
+    border-left: 4px solid var(--amber);
+  }
+
+  .kpi-card.monitored {
+    border-left: 4px solid var(--green);
+  }
+
+  .kpi-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.8;
+    margin-bottom: 8px;
+  }
+
+  .kpi-value {
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1;
+    margin: 0 0 8px 0;
+  }
+
+  .kpi-card.expired .kpi-value { color: var(--red); }
+  .kpi-card.pending .kpi-value { color: var(--amber); }
+  .kpi-card.monitored .kpi-value { color: var(--green); }
+
+  .kpi-subtitle {
+    font-size: 0.85rem;
+    opacity: 0.8;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  .stat-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .chart-container {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    min-height: 350px;
+  }
+
+  .chart-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  .chart-wrapper {
+    position: relative;
+    height: 280px;
+  }
+
+  .table-container {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 32px;
+    overflow-x: auto;
+  }
+
+  .table-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  thead {
+    background: #f9f9f9;
+  }
+
+  th {
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+  }
+
+  td {
+    padding: 12px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tr:hover {
+    background: #f9f9f9;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .status-expired { background: #f8d7da; color: var(--red); }
+  .status-pending { background: #fff3cd; color: var(--amber); }
+  .status-monitored { background: #d4edda; color: var(--green); }
+
+  .days-alert {
+    font-weight: 700;
+    color: var(--red);
+  }
+
+  .filter-group {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .filter-control {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .filter-control label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .filter-control input,
+  .filter-control select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: #f9f9f9;
+    color: var(--text);
+  }
+
+  .filter-control input:focus,
+  .filter-control select:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: #ffffff;
+  }
+
+  #fileInput {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .kpi-grid {
+      grid-template-columns: 1fr;
+    }
+    .header-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    body {
+      padding: 16px;
+    }
+    .charts-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .last-update {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    text-align: right;
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>🎯 SGI - Análisis TNC</h1>
+      <p style="margin: 4px 0 0; color: var(--text-dim); font-size: 0.9rem;">Período: 28/08/2025 - 28/08/2026</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" id="uploadBtn">📁 Cargar Excel</button>
+      <button class="btn btn-secondary" id="downloadBtn" disabled>📄 Descargar PDF</button>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+    </div>
+  </div>
+  <div id="uploadStatus" class="upload-status">Carga un Excel para comenzar</div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="overview">SGI</button>
+  <button class="tab" data-tab="eficaces">Eficaces</button>
+  <button class="tab" data-tab="ineficaces">No Eficaces</button>
+  <button class="tab" data-tab="retrasos">NC Abiertas</button>
+</div>
+
+<!-- TAB: OVERVIEW -->
+<div id="tab-overview" class="tab-content">
+  <div class="kpi-grid">
+    <div class="kpi-card total">
+      <div class="kpi-label">Total Cerradas</div>
+      <div class="kpi-value" id="kpi-total">0</div>
+      <div class="kpi-subtitle">En período</div>
+    </div>
+    
+    <div class="kpi-card expired">
+      <div class="kpi-label">No Eficaces</div>
+      <div class="kpi-value" id="kpi-ineficaces">0</div>
+      <div class="kpi-subtitle" id="pct-ineficaces">0%</div>
+    </div>
+    
+    <div class="kpi-card pending">
+      <div class="kpi-label">Sin Evaluación</div>
+      <div class="kpi-value" id="kpi-sin-eval">0</div>
+      <div class="kpi-subtitle" id="pct-sin-eval">0%</div>
+    </div>
+
+    <div class="kpi-card monitored">
+      <div class="kpi-label">NC Abiertas</div>
+      <div class="kpi-value" id="kpi-abiertas">0</div>
+      <div class="kpi-subtitle">TNCs Únicas</div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-title">✅ Eficacia (%)</div>
+      <div style="font-size: 2.4rem; font-weight: 800; color: var(--primary); margin: 16px 0;">
+        <span id="stat-eficacia">0</span>%
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-dim);">
+        De <span id="stat-total-cerradas">0</span> TNCs cerradas
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-title">📊 Desglose Abiertas</div>
+      <div style="font-size: 1rem; color: var(--text); margin: 16px 0; line-height: 1.8;">
+        <span style="display: block;">🟠 Pendientes: <strong id="stat-pendientes">0</strong></span>
+        <span style="display: block;">🟢 Monitoreadas: <strong id="stat-monitoreadas">0</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-container">
+      <div class="chart-title">📊 Monitoreo de los TNCs</div>
+      <div class="chart-wrapper">
+        <canvas id="chartEstados"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <div class="chart-title">✅ Efectividad</div>
+      <div class="chart-wrapper">
+        <canvas id="chartEfectividad"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <div class="table-title">✅ TNCs Eficaces Cerradas</div>
+    <div class="filter-group">
+      <div class="filter-control">
+        <label>Buscar</label>
+        <input type="text" id="search-eficaces" placeholder="TNC, Área...">
+      </div>
+      <div class="filter-control">
+        <label>Emisor</label>
+        <select id="emisor-eficaces">
+          <option value="">- Todos -</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: flex-end;">
+        <button class="btn btn-secondary" onclick="resetFiltrosEficaces()" style="flex: 1;">Limpiar</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>TNC</th>
+          <th>Fecha Cierre</th>
+          <th>Emisor</th>
+          <th>Área</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-eficaces">
+        <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">Carga un Excel</td></tr>
+      </tbody>
+    </table>
+    <div class="last-update" id="count-eficaces"></div>
+  </div>
+</div>
+
+<!-- TAB: INEFICACES -->
+<div id="tab-ineficaces" class="tab-content" style="display: none;">
+  <div class="table-container">
+    <div class="table-title">🔴 TNCs No Eficaces</div>
+    <div class="filter-group">
+      <div class="filter-control">
+        <label>Buscar</label>
+        <input type="text" id="search-ineficaces" placeholder="TNC, Área...">
+      </div>
+      <div class="filter-control">
+        <label>Emisor</label>
+        <select id="emisor-ineficaces">
+          <option value="">- Todos -</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: flex-end;">
+        <button class="btn btn-secondary" onclick="resetFiltrosIneficaces()" style="flex: 1;">Limpiar</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>TNC</th>
+          <th>Fecha Cierre</th>
+          <th>Emisor</th>
+          <th>Área</th>
+          <th>Cuestiones Pendientes</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-ineficaces">
+        <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">Carga un Excel</td></tr>
+      </tbody>
+    </table>
+    <div class="last-update" id="count-ineficaces"></div>
+  </div>
+</div>
+
+<!-- TAB: NC ABIERTAS -->
+<div id="tab-retrasos" class="tab-content" style="display: none;">
+  <div class="table-container">
+    <div class="table-title">⏳ NC Abiertas (Pendientes + Monitoreadas)</div>
+    <div class="filter-group">
+      <div class="filter-control">
+        <label>Buscar</label>
+        <input type="text" id="search-retrasos" placeholder="TNC, Área...">
+      </div>
+      <div class="filter-control">
+        <label>Emisor</label>
+        <select id="emisor-retrasos">
+          <option value="">- Todos -</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: flex-end;">
+        <button class="btn btn-secondary" onclick="resetFiltrosRetrasos()" style="flex: 1;">Limpiar</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>TNC</th>
+          <th>Días Abiertos</th>
+          <th>Status</th>
+          <th>Emisor</th>
+          <th>Área</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-retrasos">
+        <tr><td colspan="5" style="text-align: center; color: var(--text-dim);">Carga un Excel</td></tr>
+      </tbody>
+    </table>
+    <div class="last-update" id="count-retrasos"></div>
+  </div>
+</div>
+
+<script>
+let EFICACES = [];
+let INEFICACES = [];
+let SIN_EVALUACION = [];
+let TODAS_ABIERTAS = [];
+let KPI_COUNTS = null;
+
+let chartEstados = null;
+let chartEfectividad = null;
+
+const FECHA_HOY = new Date(2026, 7, 28);
+const FECHA_1ANO_ATRAS = new Date(2025, 7, 28);
+
+function parseDDMMYYYY(str){
+  if(!str) return null;
+  if(str instanceof Date) return str;
+  const match = String(str).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!match) return null;
+  return new Date(match[3], match[2]-1, match[1]);
+}
+
+function daysBetween(date1, date2){
+  const ms = date2 - date1;
+  return Math.floor(ms / (1000*60*60*24));
+}
+
+function procesarDatos(rawRows){
+  const headers = rawRows[3];
+  if(!headers) return [];
+
+  const colIdx = {};
+  headers.forEach((h, i) => {
+    if(!h) return;
+    const lower = String(h).toLowerCase();
+    if(lower.includes('status') && lower.includes('tnc')) colIdx.status = i;
+    else if(lower.includes('numero') && lower.includes('tnc')) colIdx.numero = i;
+    else if(lower.includes('fecha de cierre')) colIdx.fechaCierre = i;
+    else if(lower.includes('fecha de emisión')) colIdx.fechaEmision = i;
+    else if(lower.includes('informe') && lower.includes('evaluación')) colIdx.eval = i;
+    else if(lower.includes('aplicabilidad')) colIdx.aplicabilidad = i;
+    else if(lower.includes('descripción')) colIdx.descripcion = i;
+    else if(lower.includes('emisor')) colIdx.emisor = i;
+    else if(lower.includes('área')) colIdx.area = i;
+    else if(lower.includes('cuestiones pendientes')) colIdx.cuestionesPendientes = i;
+  });
+
+  const normalized = rawRows.slice(4).map(row => ({
+    'Numero TNC': row[colIdx.numero] || '',
+    'Status TNC': (row[colIdx.status] || '').trim(),
+    'Fecha de cierre': row[colIdx.fechaCierre] || '',
+    'Fecha de Emisión': row[colIdx.fechaEmision] || '',
+    'Informe de Evaluación': (row[colIdx.eval] || '').trim().toLowerCase(),
+    'Aplicabilidad': (row[colIdx.aplicabilidad] || '').trim(),
+    'Descripción': row[colIdx.descripcion] || '',
+    'Emisor': row[colIdx.emisor] || '',
+    'Área': row[colIdx.area] || '',
+    'Cuestiones pendientes': row[colIdx.cuestionesPendientes] || ''
+  }));
+
+  const seen = new Set();
+  const deduped = [];
+  normalized.forEach(r => {
+    if(seen.has(r['Numero TNC'])) return;
+    seen.add(r['Numero TNC']);
+    deduped.push(r);
+  });
+
+  return deduped;
+}
+
+function calcularKPIs(data){
+  const eficaces = [];
+  const ineficaces = [];
+  const sinEvaluacion = [];
+  const todasAbiertas = [];
+
+  // Sets para deduplicar TNCs
+  const tncsAbiertas = new Set();
+  const tncsPendientes = new Set();
+  const tncsMonitoreadas = new Set();
+
+  data.forEach(row => {
+    if(row['Status TNC'] === 'Completado'){
+      const fechaCierre = parseDDMMYYYY(row['Fecha de cierre']);
+      if(fechaCierre && fechaCierre >= FECHA_1ANO_ATRAS && fechaCierre <= FECHA_HOY){
+        const eval_lower = String(row['Informe de Evaluación']).toLowerCase().trim();
+        
+        if(eval_lower === 'eficaz'){
+          eficaces.push(row);
+        } else if(eval_lower === 'não eficaz'){
+          ineficaces.push(row);
+        } else if(eval_lower === 'não avaliado' || !eval_lower){
+          sinEvaluacion.push(row);
+        }
+      }
+    }
+
+    // NC Abiertas: Pendiente + Monitoreada (NO Caducada)
+    const status_lower = row['Status TNC'].toLowerCase();
+    if(status_lower === 'pendiente' || status_lower === 'monitoreada'){
+      const fechaEmision = parseDDMMYYYY(row['Fecha de Emisión']);
+      if(fechaEmision){
+        const diasAbiertos = daysBetween(fechaEmision, FECHA_HOY);
+        const rowConDias = {...row, diasAbiertos};
+        
+        // Guardar en arrays (puede haber duplicados para mostrar en tabla)
+        todasAbiertas.push(rowConDias);
+        
+        // Deduplicar en Sets
+        tncsAbiertas.add(row['Numero TNC']);
+        
+        if(status_lower === 'pendiente'){
+          tncsPendientes.add(row['Numero TNC']);
+        } else if(status_lower === 'monitoreada'){
+          tncsMonitoreadas.add(row['Numero TNC']);
+        }
+      }
+    }
+  });
+
+  EFICACES = eficaces.sort((a,b) => parseDDMMYYYY(b['Fecha de cierre']) - parseDDMMYYYY(a['Fecha de cierre']));
+  INEFICACES = ineficaces.sort((a,b) => parseDDMMYYYY(b['Fecha de cierre']) - parseDDMMYYYY(a['Fecha de cierre']));
+  SIN_EVALUACION = sinEvaluacion.sort((a,b) => parseDDMMYYYY(b['Fecha de cierre']) - parseDDMMYYYY(a['Fecha de cierre']));
+  TODAS_ABIERTAS = todasAbiertas.sort((a,b) => b.diasAbiertos - a.diasAbiertos);
+
+  const totalCerradas = eficaces.length + ineficaces.length + sinEvaluacion.length;
+  
+  return {
+    eficaces: eficaces.length,
+    ineficaces: ineficaces.length,
+    sinEvaluacion: sinEvaluacion.length,
+    totalCerradas,
+    totalAbiertas: tncsAbiertas.size,  // ← TNCs ÚNICAS
+    pendientes: tncsPendientes.size,   // ← TNCs ÚNICAS
+    monitoreadas: tncsMonitoreadas.size // ← TNCs ÚNICAS
+  };
+}
+
+function renderCharts(counts){
+  const ctxEstados = document.getElementById('chartEstados').getContext('2d');
+  
+  if(chartEstados) chartEstados.destroy();
+  
+  chartEstados = new Chart(ctxEstados, {
+    type: 'doughnut',
+    data: {
+      labels: [
+        `Monitoreadas ${counts.monitoreadas}`,
+        `Pendientes ${counts.pendientes}`
+      ],
+      datasets: [{
+        data: [counts.monitoreadas, counts.pendientes],
+        backgroundColor: ['#1fa874', '#d97c0d'],
+        borderColor: '#ffffff',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 12 },
+            padding: 16,
+            usePointStyle: true,
+            pointStyle: 'circle'
+          }
+        }
+      }
+    }
+  });
+
+  const ctxEfectividad = document.getElementById('chartEfectividad').getContext('2d');
+  
+  if(chartEfectividad) chartEfectividad.destroy();
+  
+  const pctEficaces = counts.totalCerradas > 0 ? Math.round((counts.eficaces/counts.totalCerradas)*100) : 0;
+  const pctOtras = 100 - pctEficaces;
+  
+  chartEfectividad = new Chart(ctxEfectividad, {
+    type: 'doughnut',
+    data: {
+      labels: [
+        `Efectivas ${pctEficaces}%`,
+        `No Efectivas ${pctOtras}%`
+      ],
+      datasets: [{
+        data: [pctEficaces, pctOtras],
+        backgroundColor: ['#1fa874', '#d14545'],
+        borderColor: '#ffffff',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 12 },
+            padding: 16,
+            usePointStyle: true,
+            pointStyle: 'circle'
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderKPIs(counts){
+  KPI_COUNTS = counts;
+  
+  const pctEficaces = counts.totalCerradas > 0 ? Math.round((counts.eficaces/counts.totalCerradas)*100) : 0;
+  const pctIneficaces = counts.totalCerradas > 0 ? Math.round((counts.ineficaces/counts.totalCerradas)*100) : 0;
+  const pctSinEval = counts.totalCerradas > 0 ? Math.round((counts.sinEvaluacion/counts.totalCerradas)*100) : 0;
+
+  document.getElementById('kpi-total').textContent = counts.totalCerradas;
+  document.getElementById('kpi-ineficaces').textContent = counts.ineficaces;
+  document.getElementById('pct-ineficaces').textContent = pctIneficaces + '%';
+  document.getElementById('kpi-sin-eval').textContent = counts.sinEvaluacion;
+  document.getElementById('pct-sin-eval').textContent = pctSinEval + '%';
+  document.getElementById('kpi-abiertas').textContent = counts.totalAbiertas;
+
+  document.getElementById('stat-eficacia').textContent = pctEficaces;
+  document.getElementById('stat-total-cerradas').textContent = counts.totalCerradas;
+  document.getElementById('stat-pendientes').textContent = counts.pendientes;
+  document.getElementById('stat-monitoreadas').textContent = counts.monitoreadas;
+
+  renderCharts(counts);
+  renderTablaEficaces(EFICACES);
+  renderTablaIneficaces(INEFICACES);
+  renderTablaRetrasos(TODAS_ABIERTAS);
+  
+  poblarEmisores();
+  document.getElementById('downloadBtn').disabled = false;
+}
+
+function renderTablaEficaces(data){
+  const tbody = document.getElementById('tbody-eficaces');
+  const count = document.getElementById('count-eficaces');
+  
+  if(!data.length){
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin registros</td></tr>';
+    count.textContent = '';
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>TNC ${r['Numero TNC']}</strong></td>
+      <td>${r['Fecha de cierre']}</td>
+      <td>${r['Emisor']}</td>
+      <td>${r['Área']}</td>
+      <td style="max-width:300px; word-wrap:break-word; font-size:0.85rem;">${(r['Descripción'] || '').substring(0,100)}...</td>
+    </tr>
+  `).join('');
+  
+  count.textContent = `${data.length} registros`;
+}
+
+function renderTablaIneficaces(data){
+  const tbody = document.getElementById('tbody-ineficaces');
+  const count = document.getElementById('count-ineficaces');
+  
+  if(!data.length){
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin registros</td></tr>';
+    count.textContent = '';
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>TNC ${r['Numero TNC']}</strong></td>
+      <td>${r['Fecha de cierre']}</td>
+      <td>${r['Emisor']}</td>
+      <td>${r['Área']}</td>
+      <td style="max-width:300px; word-wrap:break-word; font-size:0.85rem;">${(r['Cuestiones pendientes'] || '').substring(0,100)}...</td>
+    </tr>
+  `).join('');
+
+  count.textContent = `${data.length} registros`;
+}
+
+function renderTablaRetrasos(data){
+  const tbody = document.getElementById('tbody-retrasos');
+  const count = document.getElementById('count-retrasos');
+  
+  if(!data.length){
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Sin registros</td></tr>';
+    count.textContent = '';
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>TNC ${r['Numero TNC']}</strong></td>
+      <td><span class="status-badge status-expired">${r.diasAbiertos} días</span></td>
+      <td><span class="status-badge ${r['Status TNC'].toLowerCase() === 'pendiente' ? 'status-pending' : 'status-monitored'}">${r['Status TNC']}</span></td>
+      <td>${r['Emisor']}</td>
+      <td>${r['Área']}</td>
+    </tr>
+  `).join('');
+
+  count.textContent = `${data.length} registros`;
+}
+
+function poblarEmisores(){
+  const emisoresEficaces = [...new Set(EFICACES.map(r => r['Emisor']).filter(e => e))].sort();
+  const emisoresIneficaces = [...new Set(INEFICACES.map(r => r['Emisor']).filter(e => e))].sort();
+  const emisoresRetrasos = [...new Set(TODAS_ABIERTAS.map(r => r['Emisor']).filter(e => e))].sort();
+
+  [
+    {sel: 'emisor-eficaces', arr: emisoresEficaces},
+    {sel: 'emisor-ineficaces', arr: emisoresIneficaces},
+    {sel: 'emisor-retrasos', arr: emisoresRetrasos}
+  ].forEach(({sel, arr}) => {
+    const elem = document.getElementById(sel);
+    elem.innerHTML = '<option value="">- Todos -</option>' + 
+      arr.map(e => `<option value="${e}">${e}</option>`).join('');
+  });
+}
+
+function filtrarTabla(search, emisor, data){
+  return data.filter(r => {
+    const matchSearch = !search || 
+      r['Descripción'].toLowerCase().includes(search) ||
+      r['Área'].toLowerCase().includes(search) ||
+      String(r['Numero TNC']).includes(search);
+    const matchEmisor = !emisor || r['Emisor'] === emisor;
+    return matchSearch && matchEmisor;
+  });
+}
+
+function resetFiltrosEficaces(){
+  document.getElementById('search-eficaces').value = '';
+  document.getElementById('emisor-eficaces').value = '';
+  renderTablaEficaces(EFICACES);
+}
+
+function resetFiltrosIneficaces(){
+  document.getElementById('search-ineficaces').value = '';
+  document.getElementById('emisor-ineficaces').value = '';
+  renderTablaIneficaces(INEFICACES);
+}
+
+function resetFiltrosRetrasos(){
+  document.getElementById('search-retrasos').value = '';
+  document.getElementById('emisor-retrasos').value = '';
+  renderTablaRetrasos(TODAS_ABIERTAS);
+}
+
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadStatus = document.getElementById('uploadStatus');
+
+function setUploadStatus(msg, kind){
+  uploadStatus.textContent = msg;
+  uploadStatus.className = 'upload-status' + (kind ? ' '+kind : '');
+}
+
+uploadBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  setUploadStatus('Leyendo archivo...');
+  const reader = new FileReader();
+
+  reader.onload = (evt) => {
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:false});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:'', blankrows:false});
+
+      if(!rawRows.length){
+        setUploadStatus('El archivo está vacío', 'error');
+        return;
+      }
+
+      const processed = procesarDatos(rawRows);
+      const counts = calcularKPIs(processed);
+      renderKPIs(counts);
+      setUploadStatus('✓ Archivo cargado correctamente', 'success');
+    }catch(err){
+      console.error(err);
+      setUploadStatus(`Error: ${err.message}`, 'error');
+    }
+  };
+
+  reader.onerror = () => setUploadStatus('Error al leer el archivo', 'error');
+  reader.readAsArrayBuffer(file);
+  fileInput.value = '';
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(v => v.style.display = 'none');
+    
+    tab.classList.add('active');
+    const tabName = tab.getAttribute('data-tab');
+    document.getElementById(`tab-${tabName}`).style.display = 'block';
+  });
+});
+
+document.getElementById('search-eficaces').addEventListener('input', function(){
+  const search = this.value.toLowerCase();
+  const emisor = document.getElementById('emisor-eficaces').value;
+  renderTablaEficaces(filtrarTabla(search, emisor, EFICACES));
+});
+
+document.getElementById('emisor-eficaces').addEventListener('change', function(){
+  const search = document.getElementById('search-eficaces').value.toLowerCase();
+  const emisor = this.value;
+  renderTablaEficaces(filtrarTabla(search, emisor, EFICACES));
+});
+
+document.getElementById('search-ineficaces').addEventListener('input', function(){
+  const search = this.value.toLowerCase();
+  const emisor = document.getElementById('emisor-ineficaces').value;
+  renderTablaIneficaces(filtrarTabla(search, emisor, INEFICACES));
+});
+
+document.getElementById('emisor-ineficaces').addEventListener('change', function(){
+  const search = document.getElementById('search-ineficaces').value.toLowerCase();
+  const emisor = this.value;
+  renderTablaIneficaces(filtrarTabla(search, emisor, INEFICACES));
+});
+
+document.getElementById('search-retrasos').addEventListener('input', function(){
+  const search = this.value.toLowerCase();
+  const emisor = document.getElementById('emisor-retrasos').value;
+  renderTablaRetrasos(filtrarTabla(search, emisor, TODAS_ABIERTAS));
+});
+
+document.getElementById('emisor-retrasos').addEventListener('change', function(){
+  const search = document.getElementById('search-retrasos').value.toLowerCase();
+  const emisor = this.value;
+  renderTablaRetrasos(filtrarTabla(search, emisor, TODAS_ABIERTAS));
+});
+
+document.getElementById('downloadBtn').addEventListener('click', function(){
+  if(!KPI_COUNTS) return;
+  
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const c = KPI_COUNTS;
+  
+  const pctEficaces = c.totalCerradas > 0 ? Math.round((c.eficaces/c.totalCerradas)*100) : 0;
+
+  doc.setFillColor(82, 37, 130);
+  doc.rect(0, 0, 210, 25, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.text('Informe Ejecutivo SGI - Análisis TNC', 14, 15);
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Total Cerradas: ${c.totalCerradas} | Eficaces: ${c.eficaces} (${pctEficaces}%) | NC Abiertas Únicas: ${c.totalAbiertas}`, 14, 35);
+  
+  if(INEFICACES.length > 0){
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.text(`TNCs No Eficaces (${INEFICACES.length})`, 14, 45);
+    
+    doc.autoTable({
+      startY: 50,
+      head: [['TNC', 'Fecha', 'Emisor', 'Área']],
+      body: INEFICACES.slice(0, 20).map(r => [r['Numero TNC'], r['Fecha de cierre'], r['Emisor'], r['Área']]),
+      styles: {fontSize: 8},
+      headStyles: {fillColor: [82, 37, 130]}
+    });
+  }
+
+  doc.save(`Informe_TNC_${new Date().toISOString().slice(0,10)}.pdf`);
+});
+
+setUploadStatus('Carga un Excel para comenzar');
+</script>
+
+</body>
+</html>
