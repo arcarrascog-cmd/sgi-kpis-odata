@@ -586,6 +586,7 @@
   <button class="tab" data-tab="eficaces">Eficaces</button>
   <button class="tab" data-tab="ineficaces">No Eficaces</button>
   <button class="tab" data-tab="retrasos">Retrasos >180d</button>
+  <button class="tab" data-tab="abiertas">NC Abiertas</button>
 </div>
 
 <!-- TAB: OVERVIEW -->
@@ -690,6 +691,7 @@
           <button class="status-chip" data-status="pendiente">🟠 Pendientes</button>
           <button class="status-chip" data-status="monitoreada">🟢 Monitoreadas</button>
           <button class="status-chip" data-status="caducada">🔴 Caducadas</button>
+          <button class="status-chip" id="btn-ver-detalle" style="border-style:dashed;" title="Ver el listado de TNCs con el filtro actual">🔍 Ver detalle</button>
         </div>
       </div>
       <div class="chart-wrapper">
@@ -812,6 +814,55 @@
     <div class="last-update" id="count-retrasos"></div>
   </div>
 </div>
+
+<!-- TAB: NC ABIERTAS (detalle) -->
+<div id="tab-abiertas" class="tab-content" style="display: none;">
+  <div class="table-container">
+    <div class="table-title">👤 NC Abiertas — Aplicabilidad Real (detalle del gráfico por analista)</div>
+    <p style="margin:-8px 0 16px; font-size:0.78rem; color:var(--text-dim);">Mismo criterio que el gráfico "NC Abiertas por Analista": TNCs únicas con Status Pendiente / Monitoreada / Caducada y Aplicabilidad = Real. Días contados desde la Fecha de Emisión hasta hoy.</p>
+    <div class="filter-group">
+      <div class="filter-control">
+        <label>Buscar</label>
+        <input type="text" id="search-abiertas" placeholder="TNC, Área...">
+      </div>
+      <div class="filter-control">
+        <label>Status</label>
+        <select id="status-abiertas">
+          <option value="">- Todos -</option>
+          <option value="pendiente">🟠 Pendiente</option>
+          <option value="monitoreada">🟢 Monitoreada</option>
+          <option value="caducada">🔴 Caducada</option>
+        </select>
+      </div>
+      <div class="filter-control">
+        <label>Emisor</label>
+        <select id="emisor-abiertas">
+          <option value="">- Todos -</option>
+        </select>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: flex-end;">
+        <button class="btn btn-secondary" onclick="resetFiltrosAbiertas()" style="flex: 1;">Limpiar</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>TNC</th>
+          <th>Status</th>
+          <th>Emisión</th>
+          <th>Días Abiertos</th>
+          <th>Emisor</th>
+          <th>Área</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-abiertas">
+        <tr><td colspan="7" style="text-align: center; color: var(--text-dim);">Carga un Excel</td></tr>
+      </tbody>
+    </table>
+    <div class="last-update" id="count-abiertas"></div>
+  </div>
+</div>
 </div><!-- /main-content -->
 
 <script>
@@ -819,6 +870,7 @@ let EFICACES = [];
 let INEFICACES = [];
 let SIN_EVALUACION = [];
 let TODAS_ABIERTAS = [];
+let ABIERTAS_DETALLE = [];  // todas las abiertas Reales (no solo >180d), para la pestaña de detalle
 let KPI_COUNTS = null;
 let DIAG = '';
 let DATA_GLOBAL = null;
@@ -980,6 +1032,7 @@ function calcularKPIs(data){
   INEFICACES = numsIneficaces.map(n => filaRep[n]).sort((a,b) => parseDDMMYYYY(b['Fecha de cierre']) - parseDDMMYYYY(a['Fecha de cierre']));
   SIN_EVALUACION = numsSinEval.map(n => filaRep[n]);
   TODAS_ABIERTAS = numsAbiertas.map(n => filaRep[n]).filter(r => (r.diasAbiertos||0) > 180).sort((a,b) => (b.diasAbiertos||0) - (a.diasAbiertos||0));
+  ABIERTAS_DETALLE = numsAbiertas.map(n => filaRep[n]).sort((a,b) => (b.diasAbiertos||0) - (a.diasAbiertos||0));
 
   const totalCerradas = numsEficaces.length + numsIneficaces.length + numsSinEval.length;
 
@@ -1128,6 +1181,7 @@ function renderKPIs(counts){
   renderTablaEficaces(EFICACES);
   renderTablaIneficaces(INEFICACES);
   renderTablaRetrasos(TODAS_ABIERTAS);
+  renderTablaAbiertas(ABIERTAS_DETALLE);
   
   poblarEmisores();
   document.getElementById('downloadBtn').disabled = false;
@@ -1207,19 +1261,76 @@ function renderTablaRetrasos(data){
   count.textContent = `${data.length} registros`;
 }
 
+function badgeStatus(st){
+  const s = normalizar(st);
+  const cls = s === 'pendiente' ? 'status-pending' : (s === 'caducada' ? 'status-expired' : 'status-monitored');
+  return `<span class="status-badge ${cls}">${st}</span>`;
+}
+
+function renderTablaAbiertas(data){
+  const tbody = document.getElementById('tbody-abiertas');
+  const count = document.getElementById('count-abiertas');
+
+  if(!data.length){
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);">Sin registros</td></tr>';
+    count.textContent = '';
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>TNC ${r['Numero TNC']}</strong></td>
+      <td>${badgeStatus(r['Status TNC'])}</td>
+      <td>${r['Fecha de Emisión']}</td>
+      <td><span class="${(r.diasAbiertos||0) > 180 ? 'days-alert' : ''}">${r.diasAbiertos ?? '–'} días</span></td>
+      <td>${primerNombre(r['Emisor'])}</td>
+      <td>${r['Área']}</td>
+      <td style="max-width:420px; word-wrap:break-word; font-size:0.82rem;">${descCorta(r)}</td>
+    </tr>
+  `).join('');
+
+  count.textContent = `${data.length} registros`;
+}
+
+function filtrarAbiertas(){
+  const search = document.getElementById('search-abiertas').value.toLowerCase();
+  const status = document.getElementById('status-abiertas').value;
+  const emisor = document.getElementById('emisor-abiertas').value;
+  let data = filtrarTabla(search, emisor, ABIERTAS_DETALLE);
+  if(status) data = data.filter(r => normalizar(r['Status TNC']) === status);
+  renderTablaAbiertas(data);
+}
+
+function resetFiltrosAbiertas(){
+  document.getElementById('search-abiertas').value = '';
+  document.getElementById('status-abiertas').value = '';
+  document.getElementById('emisor-abiertas').value = '';
+  renderTablaAbiertas(ABIERTAS_DETALLE);
+}
+
+function abrirTab(nombre){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === nombre));
+  document.querySelectorAll('.tab-content').forEach(v => v.style.display = 'none');
+  document.getElementById('tab-' + nombre).style.display = 'block';
+}
+
 function poblarEmisores(){
   const emisoresEficaces = [...new Set(EFICACES.map(r => primerNombre(r['Emisor'])).filter(e => e && e !== '(sin emisor)'))].sort();
   const emisoresIneficaces = [...new Set(INEFICACES.map(r => primerNombre(r['Emisor'])).filter(e => e && e !== '(sin emisor)'))].sort();
   const emisoresRetrasos = [...new Set(TODAS_ABIERTAS.map(r => primerNombre(r['Emisor'])).filter(e => e && e !== '(sin emisor)'))].sort();
+  const emisoresAbiertas = [...new Set(ABIERTAS_DETALLE.map(r => primerNombre(r['Emisor'])).filter(e => e && e !== '(sin emisor)'))].sort();
 
   [
     {sel: 'emisor-eficaces', arr: emisoresEficaces},
     {sel: 'emisor-ineficaces', arr: emisoresIneficaces},
-    {sel: 'emisor-retrasos', arr: emisoresRetrasos}
+    {sel: 'emisor-retrasos', arr: emisoresRetrasos},
+    {sel: 'emisor-abiertas', arr: emisoresAbiertas}
   ].forEach(({sel, arr}) => {
     const elem = document.getElementById(sel);
+    const actual = elem.value;
     elem.innerHTML = '<option value="">- Todos -</option>' + 
       arr.map(e => `<option value="${e}">${e}</option>`).join('');
+    elem.value = actual;
   });
 }
 
@@ -1347,6 +1458,21 @@ document.getElementById('emisor-retrasos').addEventListener('change', function()
   const search = document.getElementById('search-retrasos').value.toLowerCase();
   const emisor = this.value;
   renderTablaRetrasos(filtrarTabla(search, emisor, TODAS_ABIERTAS));
+});
+
+document.getElementById('search-abiertas').addEventListener('input', filtrarAbiertas);
+document.getElementById('status-abiertas').addEventListener('change', filtrarAbiertas);
+document.getElementById('emisor-abiertas').addEventListener('change', filtrarAbiertas);
+
+// "Ver detalle" desde el gráfico: abre la pestaña con el mismo filtro (status + analista) que tiene el gráfico
+document.getElementById('btn-ver-detalle').addEventListener('click', function(){
+  if(!DATA_GLOBAL) return;
+  document.getElementById('search-abiertas').value = '';
+  document.getElementById('status-abiertas').value = STATUS_SEL || '';
+  document.getElementById('emisor-abiertas').value = ANALISTA_SEL || '';
+  filtrarAbiertas();
+  abrirTab('abiertas');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
 document.getElementById('downloadBtn').addEventListener('click', function(){
@@ -1584,10 +1710,10 @@ function poblarFiltroAnalistas(){
   sel.value = actual;
 }
 
-document.querySelectorAll('.status-chip').forEach(chip => {
+document.querySelectorAll('.status-chip[data-status]').forEach(chip => {
   chip.addEventListener('click', function(){
     STATUS_SEL = this.dataset.status;
-    document.querySelectorAll('.status-chip').forEach(c => c.className = 'status-chip');
+    document.querySelectorAll('.status-chip[data-status]').forEach(c => c.className = 'status-chip');
     this.classList.add('active-' + (STATUS_SEL || 'todas'));
     renderChartAnalistas();
   });
@@ -1600,7 +1726,7 @@ document.getElementById('filtro-analista').addEventListener('change', function()
 
 (function initPeriodo(){
   const hasta = new Date(); hasta.setHours(0,0,0,0);
-  const desde = new Date(hasta.getFullYear(), 0, 1);  // año calendario
+  const desde = new Date(hasta); desde.setFullYear(desde.getFullYear() - 1);  // 12 meses móviles (ej: 02/09/2025 – 02/09/2026)
   document.getElementById('periodo-desde').value = toInputDate(desde);
   document.getElementById('periodo-hasta').value = toInputDate(hasta);
   leerPeriodo();
